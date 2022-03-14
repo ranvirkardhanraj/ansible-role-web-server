@@ -1,0 +1,59 @@
+---
+- name: 'Installing web-server'
+  yum:
+    name: httpd
+    state: latest
+
+- name: 'Starting web-server'
+  service:
+    name: httpd
+    state: started
+    enabled: yes
+
+- name: 'Adding web-server in firewall'
+  firewalld:
+    service: http
+    permanent: yes
+    immediate: yes
+    state: enabled
+
+- name: 'Installing semanage package'
+  yum:
+    name: "{{ semanage }}"
+    state: latest
+
+- name: 'Allowing 8800 port to web-server'
+  seport:
+    ports: 8800
+    proto: tcp
+    setype: http_port_t
+    state: present
+
+  notify: 'restart web-server'
+- name: "Ensure the web-server access via port 8800"
+  lineinfile:
+    path: /etc/httpd/conf/httpd.conf
+    insertafter: '^#Listen '
+    line: Listen 8800
+
+  notify: 'restart web-server'
+- name: 'copying source code'
+  copy:
+    src: index.html
+    dest: /var/www/html
+  notify: 'restart web-server' 
+
+- name: 'Adding web-server in firewall'
+  firewalld:
+    port: 8800/tcp
+    permanent: yes
+    immediate: yes
+    state: enabled
+
+- name: 'Checking web-server status'
+  command: curl "{{ ansible_hostname }}"
+  register: ans
+
+- name: 'Displaying answer'
+  debug:
+    var: ans.stdout_lines
